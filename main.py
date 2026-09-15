@@ -1,68 +1,126 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 # -------------------------------------------------------
-# Response Model in FastAPI
+# HTTP Status Codes & Error Handling
 # -------------------------------------------------------
-# A response_model controls what data is sent back
-# to the client.
-#
-# Even if the function returns extra fields
-# (like passwords), FastAPI removes them automatically.
+# This example demonstrates:
+# - Returning custom status codes
+# - Using HTTPException
+# - Basic error handling
+# - Custom success responses
 # -------------------------------------------------------
 
 app = FastAPI()
 
 
 # =======================================================
-# Request Model
+# Pydantic Model
 # =======================================================
-# This model defines the data that the client sends.
 
 class User(BaseModel):
     name: str
     age: int
-    password: str
+
+
+# Fake Database
+users = []
 
 
 # =======================================================
-# Response Model
+# CREATE USER
 # =======================================================
-# This model defines what the client receives.
-# Notice that "password" is intentionally omitted.
 
-class UserResponse(BaseModel):
-    name: str
-    age: int
-
-
-# =======================================================
-# Create User Endpoint
-# =======================================================
-# Request Body  -> User
-# Response Body -> UserResponse
-
-@app.post("/users", response_model=UserResponse)
+@app.post("/users", status_code=status.HTTP_201_CREATED)
 def create_user(user: User):
     """
-    Example Request:
+    Creates a new user.
 
-    {
-        "name": "Prashil",
-        "age": 21,
-        "password": "secret123"
-    }
-
-    Response:
-
-    {
-        "name": "Prashil",
-        "age": 21
-    }
+    Success Status Code:
+    201 Created
     """
 
-    # Returning the entire user object.
-    # FastAPI automatically removes the password
-    # because of response_model=UserResponse.
+    users.append(user)
+    return {
+        "message": "User created successfully",
+        "data": user
+    }
 
-    return user
+
+# =======================================================
+# GET USER
+# =======================================================
+
+@app.get("/users/{user_id}")
+def get_user(user_id: int):
+    """
+    Returns a user by ID.
+
+    Error:
+    404 Not Found
+    """
+
+    if user_id < 1 or user_id > len(users):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    return {
+        "message": "User found",
+        "data": users[user_id - 1]
+    }
+
+
+# =======================================================
+# DELETE USER
+# =======================================================
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int):
+    """
+    Deletes a user.
+
+    Success:
+    200 OK
+
+    Error:
+    404 Not Found
+    """
+
+    if user_id < 1 or user_id > len(users):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    deleted_user = users.pop(user_id - 1)
+
+    return {
+        "message": "User deleted successfully",
+        "data": deleted_user
+    }
+
+
+# =======================================================
+# AGE VALIDATION
+# =======================================================
+
+@app.post("/check-age")
+def check_age(user: User):
+    """
+    Demonstrates custom validation.
+
+    Error:
+    400 Bad Request
+    """
+
+    if user.age < 18:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User must be at least 18 years old"
+        )
+
+    return {
+        "message": "Age verification successful"
+    }
