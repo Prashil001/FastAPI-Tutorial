@@ -1,126 +1,121 @@
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 # -------------------------------------------------------
-# HTTP Status Codes & Error Handling
+# Exception Handling in FastAPI
 # -------------------------------------------------------
 # This example demonstrates:
-# - Returning custom status codes
-# - Using HTTPException
-# - Basic error handling
-# - Custom success responses
+# - HTTPException
+# - Custom Exception
+# - Global HTTP Exception Handler
+# - Global Custom Exception Handler
+# - Global Exception Handler (Unexpected Errors)
 # -------------------------------------------------------
 
 app = FastAPI()
 
 
 # =======================================================
-# Pydantic Model
+# Custom Exception
 # =======================================================
 
-class User(BaseModel):
-    name: str
-    age: int
+class UserNotFoundException(Exception):
+    def __init__(self, user_id: int):
+        self.user_id = user_id
 
 
 # Fake Database
-users = []
+users = {
+    1: "Prashil",
+    2: "Rahul"
+}
 
 
 # =======================================================
-# CREATE USER
+# Route 1 - HTTPException
 # =======================================================
 
-@app.post("/users", status_code=status.HTTP_201_CREATED)
-def create_user(user: User):
-    """
-    Creates a new user.
+@app.get("/http-user/{user_id}")
+def get_http_user(user_id: int):
 
-    Success Status Code:
-    201 Created
-    """
-
-    users.append(user)
-    return {
-        "message": "User created successfully",
-        "data": user
-    }
-
-
-# =======================================================
-# GET USER
-# =======================================================
-
-@app.get("/users/{user_id}")
-def get_user(user_id: int):
-    """
-    Returns a user by ID.
-
-    Error:
-    404 Not Found
-    """
-
-    if user_id < 1 or user_id > len(users):
+    if user_id not in users:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="User not found"
         )
 
-    return {
-        "message": "User found",
-        "data": users[user_id - 1]
-    }
+    return {"user": users[user_id]}
 
 
 # =======================================================
-# DELETE USER
+# Route 2 - Custom Exception
 # =======================================================
 
-@app.delete("/users/{user_id}")
-def delete_user(user_id: int):
-    """
-    Deletes a user.
+@app.get("/custom-user/{user_id}")
+def get_custom_user(user_id: int):
 
-    Success:
-    200 OK
+    if user_id not in users:
+        raise UserNotFoundException(user_id)
 
-    Error:
-    404 Not Found
-    """
-
-    if user_id < 1 or user_id > len(users):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
-    deleted_user = users.pop(user_id - 1)
-
-    return {
-        "message": "User deleted successfully",
-        "data": deleted_user
-    }
+    return {"user": users[user_id]}
 
 
 # =======================================================
-# AGE VALIDATION
+# Route 3 - Unexpected Error
 # =======================================================
 
-@app.post("/check-age")
-def check_age(user: User):
-    """
-    Demonstrates custom validation.
+@app.get("/divide")
+def divide():
 
-    Error:
-    400 Bad Request
-    """
+    # This intentionally raises ZeroDivisionError
+    result = 10 / 0
 
-    if user.age < 18:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User must be at least 18 years old"
-        )
+    return {"result": result}
 
-    return {
-        "message": "Age verification successful"
-    }
+
+# =======================================================
+# Global HTTP Exception Handler
+# =======================================================
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": exc.detail
+        }
+    )
+
+
+# =======================================================
+# Global Custom Exception Handler
+# =======================================================
+
+@app.exception_handler(UserNotFoundException)
+async def user_not_found_handler(request: Request, exc: UserNotFoundException):
+
+    return JSONResponse(
+        status_code=404,
+        content={
+            "success": False,
+            "error": f"User with ID {exc.user_id} does not exist."
+        }
+    )
+
+
+# =======================================================
+# Global Exception Handler
+# =======================================================
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "Something went wrong."
+        }
+    )
