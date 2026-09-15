@@ -1,45 +1,46 @@
 from fastapi import FastAPI
 
 # -------------------------------------------------------
-# FastAPI Basics
+# Path Parameters
 # -------------------------------------------------------
-# FastAPI is a modern Python web framework used for building
-# APIs quickly. It is built on top of:
-# - Starlette -> Handles web requests (routing, middleware).
-# - Pydantic  -> Validates request and response data.
+# Path parameters are dynamic values passed inside the URL.
 #
-# Features:
-# - Very fast performance (ASGI based)
-# - Automatic Swagger & ReDoc documentation
-# - Type hint based validation
-# - Async support
+# Example:
+#   /about/Prashil
+#   /product/101
+#
+# FastAPI automatically converts the value to the type
+# specified in the function parameter.
 # -------------------------------------------------------
 
-# Create a FastAPI application instance.
 app = FastAPI()
 
 
 # =======================================================
-# Route 1 : Home
+# Example 1: Dynamic Route
 # =======================================================
 
-@app.get("/")
-def home():
+@app.get("/about/{name}")
+def about(name: str):
     """
-    GET /
-    Returns the home page message.
+    GET /about/{name}
+
+    Example:
+    /about/Prashil
     """
-    return {"message": "This is the home page."}
+    return {"message": f"Hello {name}. How are you?"}
 
 
 # =======================================================
-# Route 2 : About
+# Example 2: Integer Path Parameter
 # =======================================================
 
-@app.get("/about")
-def about():
+@app.get("/product/{id}")
+def get_product(id: int):
     """
-    GET /about
-    Returns the about page message.
+    GET /product/{id}
+
+    Example:
+    /product/101
     """
-    return {"message": "This is the about page."}
+    return {"product_id": id}
