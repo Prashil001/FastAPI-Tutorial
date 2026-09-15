@@ -1,125 +1,63 @@
 from typing import Annotated
-from fastapi import FastAPI, Query
 
-# -------------------------------------------------------
-# Query Parameters
-# -------------------------------------------------------
-# Query parameters are values passed after the '?' in a URL.
-#
-# Example:
-# /search?item=laptop&page=2
-#
-# They are commonly used for:
-# - Searching
-# - Filtering
-# - Pagination
-# - Sorting
-# -------------------------------------------------------
+from fastapi import Body, FastAPI
+from pydantic import BaseModel, EmailStr, Field
 
 app = FastAPI()
 
 
 # =======================================================
-# Example 1: Required Query Parameter
+# Pydantic Models
 # =======================================================
 
-@app.get("/search")
-def search(item: str):
-    """
-    Example:
-    /search?item=laptop
-    """
-    return {"search_item": item}
+class Address(BaseModel):
+    city: str
+    country: str
 
 
-# =======================================================
-# Example 2: Optional Query Parameter
-# =======================================================
-
-@app.get("/profile")
-def profile(name: str | None = None):
-    """
-    Example:
-    /profile
-    /profile?name=Prashil
-    """
-    return {"name": name}
+class User(BaseModel):
+    name: Annotated[str, Field(min_length=3, max_length=30)]
+    age: Annotated[int, Field(gt=0, lt=120)]
+    email: EmailStr
+    is_student: bool = False          # Default value
+    phone: str | None = None          # Optional field
+    address: Address                  # Nested model
 
 
 # =======================================================
-# Example 3: Default Value
+# Create User
 # =======================================================
 
-@app.get("/products")
-def products(page: int = 1):
+@app.post("/users")
+def create_user(user: User):
     """
-    Example:
-    /products
-    /products?page=3
-    """
-    return {"current_page": page}
-
-
-# =======================================================
-# Example 4: Multiple Query Parameters
-# =======================================================
-
-@app.get("/items")
-def items(category: str, page: int = 1, limit: int = 10):
-    """
-    Example:
-    /items?category=electronics&page=2&limit=20
+    Request body is automatically validated
+    using the User Pydantic model.
     """
     return {
-        "category": category,
-        "page": page,
-        "limit": limit
+        "message": "User created successfully",
+        "data": user
     }
 
 
-# =======================================================
-# Example 5: Boolean Query Parameter
-# =======================================================
-
-@app.get("/users")
-def users(active: bool = True):
-    """
-    Example:
-    /users
-    /users?active=false
-    """
-    return {"active_users": active}
-
 
 # =======================================================
-# Example 6: Validation using Query()
+# Multiple Body Parameters
 # =======================================================
 
-@app.get("/books")
-def books(
-    page: Annotated[int, Query(ge=1)] = 1,
-    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+class Product(BaseModel):
+    name: str
+    price: float
+
+
+@app.post("/order")
+def create_order(
+    user: User,
+    product: Product,
+    quantity: Annotated[int, Body(gt=0)]
 ):
-    """
-    Example:
-    /books?page=2&limit=20
-    """
     return {
-        "page": page,
-        "limit": limit
+        "user": user.name,
+        "product": product.name,
+        "quantity": quantity
     }
-
-
-# =======================================================
-# Example 7: String Validation
-# =======================================================
-
-@app.get("/login")
-def login(
-    username: Annotated[str, Query(min_length=3, max_length=20)],
-):
-    """
-    Example:
-    /login?username=prashil
-    """
-    return {"username": username}
