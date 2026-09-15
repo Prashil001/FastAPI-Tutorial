@@ -1,152 +1,67 @@
-from typing import Annotated
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
-from fastapi import FastAPI, HTTPException, Path, Query, status
-from pydantic import BaseModel, Field
-
-app = FastAPI(title="Todo List API")
+app = FastAPI()
 
 
-# =======================================================
-# Pydantic Models
-# =======================================================
-
-class TodoCreate(BaseModel):
-    title: Annotated[str, Field(min_length=3, max_length=100)]
-    completed: bool = False
-
-
-class TodoUpdate(BaseModel):
-    title: Annotated[str | None, Field(min_length=3, max_length=100)] = None
-    completed: bool | None = None
-
-
+# Pydantic Model
 class Todo(BaseModel):
     id: int
     title: str
-    completed: bool
+    completed: bool = False
 
 
-# =======================================================
 # Fake Database
-# =======================================================
-
-todos: list[Todo] = [
-    Todo(id=1, title="Learn FastAPI", completed=False),
-    Todo(id=2, title="Build Todo API", completed=True)
-]
+todos = []
 
 
-# =======================================================
-# Helper Function
-# =======================================================
-
-def find_todo(todo_id: int):
-    for todo in todos:
-        if todo.id == todo_id:
-            return todo
-    return None
-
-
-# =======================================================
 # CREATE
-# =======================================================
-
-@app.post(
-    "/todos",
-    response_model=Todo,
-    status_code=status.HTTP_201_CREATED
-)
-def create_todo(todo: TodoCreate):
-    new_todo = Todo(
-        id=len(todos) + 1,
-        title=todo.title,
-        completed=todo.completed
-    )
+@app.post("/todos")
+def create_todo(todo: Todo):
+    new_todo = {
+        "id": len(todos) + 1,
+        "title": todo.title,
+        "completed": todo.completed
+    }
 
     todos.append(new_todo)
-    return new_todo
+    return {"message": "Todo created", "todo": new_todo}
 
 
-# =======================================================
 # READ ALL
-# =======================================================
-
-@app.get("/todos", response_model=list[Todo])
-def get_all_todos(
-    completed: bool | None = Query(default=None)
-):
-    """
-    Optional filtering:
-    /todos
-    /todos?completed=true
-    """
-
-    if completed is None:
-        return todos
-
-    return [todo for todo in todos if todo.completed == completed]
+@app.get("/todos")
+def get_all_todos():
+    return todos
 
 
-# =======================================================
 # READ ONE
-# =======================================================
+@app.get("/todos/{todo_id}")
+def get_todo(todo_id: int):
+    for todo in todos:
+        if todo["id"] == todo_id:
+            return todo
 
-@app.get("/todos/{todo_id}", response_model=Todo)
-def get_todo(
-    todo_id: int = Path(gt=0)
-):
-    todo = find_todo(todo_id)
-
-    if not todo:
-        raise HTTPException(
-            status_code=404,
-            detail="Todo not found"
-        )
-
-    return todo
+    raise HTTPException(status_code=404, detail="Todo not found")
 
 
-# =======================================================
 # UPDATE
-# =======================================================
+@app.put("/todos/{todo_id}")
+def update_todo(todo_id: int, updated_todo: Todo):
+    for todo in todos:
+        if todo["id"] == todo_id:
+            todo["title"] = updated_todo.title
+            todo["completed"] = updated_todo.completed
+            return {"message": "Todo updated", "todo": todo}
 
-@app.put("/todos/{todo_id}", response_model=Todo)
-def update_todo(
-    todo_id: int,
-    updated_data: TodoUpdate
-):
-    todo = find_todo(todo_id)
-
-    if not todo:
-        raise HTTPException(
-            status_code=404,
-            detail="Todo not found"
-        )
-
-    if updated_data.title is not None:
-        todo.title = updated_data.title
-
-    if updated_data.completed is not None:
-        todo.completed = updated_data.completed
-
-    return todo
+    raise HTTPException(status_code=404, detail="Todo not found")
 
 
-# =======================================================
 # DELETE
-# =======================================================
-
-@app.delete(
-    "/todos/{todo_id}",
-    status_code=status.HTTP_204_NO_CONTENT
-)
+@app.delete("/todos/{todo_id}")
 def delete_todo(todo_id: int):
-    todo = find_todo(todo_id)
+    for todo in todos:
+        if todo["id"] == todo_id:
+            todos.remove(todo)
+            return {"message": "Todo deleted"}
 
-    if not todo:
-        raise HTTPException(
-            status_code=404,
-            detail="Todo not found"
-        )
-
-    todos.remove(todo)
+    raise HTTPException(status_code=404, detail="Todo not found")
