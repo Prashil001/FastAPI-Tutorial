@@ -1,67 +1,68 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
+
+# -------------------------------------------------------
+# Response Model in FastAPI
+# -------------------------------------------------------
+# A response_model controls what data is sent back
+# to the client.
+#
+# Even if the function returns extra fields
+# (like passwords), FastAPI removes them automatically.
+# -------------------------------------------------------
 
 app = FastAPI()
 
 
-# Pydantic Model
-class Todo(BaseModel):
-    id: int
-    title: str
-    completed: bool = False
+# =======================================================
+# Request Model
+# =======================================================
+# This model defines the data that the client sends.
+
+class User(BaseModel):
+    name: str
+    age: int
+    password: str
 
 
-# Fake Database
-todos = []
+# =======================================================
+# Response Model
+# =======================================================
+# This model defines what the client receives.
+# Notice that "password" is intentionally omitted.
+
+class UserResponse(BaseModel):
+    name: str
+    age: int
 
 
-# CREATE
-@app.post("/todos")
-def create_todo(todo: Todo):
-    new_todo = {
-        "id": len(todos) + 1,
-        "title": todo.title,
-        "completed": todo.completed
+# =======================================================
+# Create User Endpoint
+# =======================================================
+# Request Body  -> User
+# Response Body -> UserResponse
+
+@app.post("/users", response_model=UserResponse)
+def create_user(user: User):
+    """
+    Example Request:
+
+    {
+        "name": "Prashil",
+        "age": 21,
+        "password": "secret123"
     }
 
-    todos.append(new_todo)
-    return {"message": "Todo created", "todo": new_todo}
+    Response:
 
+    {
+        "name": "Prashil",
+        "age": 21
+    }
+    """
 
-# READ ALL
-@app.get("/todos")
-def get_all_todos():
-    return todos
+    # Returning the entire user object.
+    # FastAPI automatically removes the password
+    # because of response_model=UserResponse.
 
-
-# READ ONE
-@app.get("/todos/{todo_id}")
-def get_todo(todo_id: int):
-    for todo in todos:
-        if todo["id"] == todo_id:
-            return todo
-
-    raise HTTPException(status_code=404, detail="Todo not found")
-
-
-# UPDATE
-@app.put("/todos/{todo_id}")
-def update_todo(todo_id: int, updated_todo: Todo):
-    for todo in todos:
-        if todo["id"] == todo_id:
-            todo["title"] = updated_todo.title
-            todo["completed"] = updated_todo.completed
-            return {"message": "Todo updated", "todo": todo}
-
-    raise HTTPException(status_code=404, detail="Todo not found")
-
-
-# DELETE
-@app.delete("/todos/{todo_id}")
-def delete_todo(todo_id: int):
-    for todo in todos:
-        if todo["id"] == todo_id:
-            todos.remove(todo)
-            return {"message": "Todo deleted"}
-
-    raise HTTPException(status_code=404, detail="Todo not found")
+    return user
