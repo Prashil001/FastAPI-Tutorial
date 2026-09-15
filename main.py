@@ -1,72 +1,56 @@
-from fastapi import FastAPI, Depends, HTTPException
+import time
+
+from fastapi import FastAPI, Request
 
 # -------------------------------------------------------
-# Dependency Injection in FastAPI
+# Middleware in FastAPI
 # -------------------------------------------------------
-# A dependency is a function that FastAPI executes before
-# your route function.
+# Middleware runs BEFORE and AFTER every request.
 #
-# It helps reuse common logic like:
+# Common uses:
+# - Logging requests
 # - Authentication
-# - Database connections
-# - Validation
-# - Logging
+# - Measuring response time
+# - Adding custom headers
 # -------------------------------------------------------
 
 app = FastAPI()
 
 
 # =======================================================
-# Basic Dependency
+# Custom Middleware
 # =======================================================
 
-def welcome_message():
-    return "Welcome to FastAPI Dependency Injection"
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    # Code before the request reaches the route
+    start_time = time.time()
 
+    print(f"Request: {request.method} {request.url}")
+
+    # Pass request to the route
+    response = await call_next(request)
+
+    # Code after the route finishes
+    process_time = time.time() - start_time
+
+    print(f"Response Time: {process_time:.4f} seconds")
+
+    # Add a custom header to every response
+    response.headers["X-Process-Time"] = f"{process_time:.4f}s"
+
+    return response
+
+
+# =======================================================
+# Sample Routes
+# =======================================================
 
 @app.get("/")
-def home(message: str = Depends(welcome_message)):
-    return {"message": message}
+def home():
+    return {"message": "Home Page"}
 
 
-# =======================================================
-# Dependency with Query Parameter
-# =======================================================
-
-def get_username(name: str = "Guest"):
-    return name
-
-
-@app.get("/profile")
-def profile(username: str = Depends(get_username)):
-    return {
-        "message": f"Hello {username}"
-    }
-
-
-# =======================================================
-# Reusable Authentication Dependency
-# =======================================================
-
-def verify_api_key(api_key: str):
-    if api_key != "fastapi123":
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid API Key"
-        )
-
-    return api_key
-
-
-@app.get("/dashboard")
-def dashboard(api_key: str = Depends(verify_api_key)):
-    return {
-        "message": "Welcome to Dashboard"
-    }
-
-
-@app.get("/settings")
-def settings(api_key: str = Depends(verify_api_key)):
-    return {
-        "message": "Settings Page"
-    }
+@app.get("/about")
+def about():
+    return {"message": "About Page"}
